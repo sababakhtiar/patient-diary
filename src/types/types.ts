@@ -4,8 +4,10 @@ export type RootStackParams= {
     SignUp: undefined;
     OtpVerification: undefined;
     Dashboard:undefined;
-    // MainTabs: undefined;
+    SearchAppointment: undefined;
     // ReportForm: undefined;
     // FilterReport: undefined;
     // Profile: undefined;
   };
+
+  // +92456879955

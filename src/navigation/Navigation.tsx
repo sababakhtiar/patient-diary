@@ -35,8 +35,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ApolloProvider } from '@apollo/client';
 import SignUp from '../screens/signUp/SignUp';
 import Login from '../screens/login/Login';
-import Dashboard from '../screens/dashboard/Dashboard'; // Import Dashboard only if used separately
 import OtpVerification from '../screens/otpVerification/OtpVerification';
+import SearchAppointment from "../screens/searchAppointment/SearchAppointment"
 import AppNavigator from './BottomNavigation'; // Import your bottom tab navigator
 import client from '../apolloClient';
 import { RootStackParams } from '../types/types';
@@ -53,6 +53,7 @@ export default function Navigation() {
           <Stack.Screen name="OtpVerification" component={OtpVerification} />
           {/* Replace Dashboard with AppNavigator */}
           <Stack.Screen name="Dashboard" component={AppNavigator} />
+          <Stack.Screen name="SearchAppointment" component={SearchAppointment} />
         </Stack.Navigator>
       </NavigationContainer>
     </ApolloProvider>

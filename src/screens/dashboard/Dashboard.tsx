@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { useQuery, gql } from '@apollo/client';
+import { useAppNavigation } from '../../utils/AppNavigation';
 
-// GraphQL query to fetch appointments based on the status
 const GET_DOCTOR_APPOINTMENTS = gql`
   query GetDoctorAppointments($status: String!) {
-    getPatientsByDoctor(status: $status)  {
+    getPatientsByDoctor(status: $status) {
       id
       name
       age
@@ -18,64 +18,93 @@ const GET_DOCTOR_APPOINTMENTS = gql`
     }
   }
 `;
-interface Appointment {  
-  id: string;  
-  status: string;  
-  appointmentTime: string;  
-}  
 
-interface Patient {  
-  id: string;  
-  name: string;  
-  age: number;  
-  photo: string | null;  
-  appointments: Appointment[];  
-} 
+interface Appointment {
+  id: string;
+  status: string;
+  appointmentTime: string;
+}
 
-interface GetPatientsByDoctorResponse {  
-  getPatientsByDoctor: Patient[];  
-} 
+interface Patient {
+  id: string;
+  name: string;
+  age: number;
+  photo: string | null;
+  appointments: Appointment[];
+}
+
+interface GetPatientsByDoctorResponse {
+  getPatientsByDoctor: Patient[];
+}
+
 const AppointmentsScreen: React.FC = () => {
   const [filter, setFilter] = useState<'UPCOMING' | 'MISSED' | 'COMPLETED'>('UPCOMING');
-
-  // Apollo Client query to fetch data based on the filter
-  const { loading, error, data } = useQuery<GetPatientsByDoctorResponse>(GET_DOCTOR_APPOINTMENTS, {  
-    variables: { status: filter },  
+  const navigation = useAppNavigation();
+  const { loading, error, data } = useQuery<GetPatientsByDoctorResponse>(GET_DOCTOR_APPOINTMENTS, {
+    variables: { status: filter },
+    // fetchPolicy: 'cache-and-network',
   });
 
-  // Check if data is available
   if (loading) return <Text>Loading...</Text>;
-  if (error) return <Text>Error fetching appointments: {error.message}</Text>;
-  if (!data || !data.getPatientsByDoctor) return <Text>No appointments found.</Text>;
 
-  // Transforming fetched data into the format needed for the FlatList
-  const appointments = data.getPatientsByDoctor.flatMap((patient) =>
-    patient.appointments.map((appointment) => ({
-      id: `${patient.id}-${appointment.id}`, // Combine patient and appointment IDs to get unique ID for FlatList
-      name: patient.name,
-      age: `${patient.age} years`,
-      time: appointment.appointmentTime,
-      status: appointment.status,
-      image: patient.photo ? { uri: patient.photo } : require('../../assets/images/google.png'), // Correct the image source format
-    }))
-  );
+  if (!data || !data.getPatientsByDoctor || data.getPatientsByDoctor.length === 0) {
+    return <Text>No appointments found.</Text>;
+  }
+  if (error) return <Text>Error: {error.message}</Text>;
+  const appointments = data.getPatientsByDoctor.map((patient) => {
+    return patient.appointments
+      .filter((appointment) => appointment.status === filter)
+      .map((appointment) => ({
+        id: `${patient.id}-${appointment.id}`, 
+        name: patient.name,
+        age: `${patient.age} years`,
+        time: appointment.appointmentTime,
+        status: appointment.status,
+        image: patient.photo ? { uri: patient.photo } : require('../../assets/images/google.png'),
+      }));
+  }).flat();
+
+  const getDotColor = (status: string) => {
+    switch (status) {
+      case 'UPCOMING':
+        return '#1EB6B9'; 
+      case 'MISSED':
+        return '#FF6161'; 
+      case 'COMPLETED':
+        return '#42CD69'; 
+      default:
+        return '#888888'; 
+    }
+  };
 
   const renderItem = ({ item }: { item: typeof appointments[0] }) => (
     <View style={styles.appointmentItem}>
       <Image source={item.image} style={styles.image} />
       <View style={styles.details}>
         <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.info}>{item.age} | {item.time}</Text>
+        <View style={styles.infoContainer}>
+      <Text style={styles.info}>{item.age} | {item.time}</Text>
+      <View style={[styles.statusDot, { backgroundColor: getDotColor(item.status) }]} />
+    </View>
       </View>
-      <TouchableOpacity>
-        <Text style={styles.more}>:</Text>
-      </TouchableOpacity>
+
+        <TouchableOpacity>
+        <Image source={require('../../assets/images/Dots.png')}  />
+        </TouchableOpacity>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Appointments</Text>
+      <View style={styles.headerContainer}>
+       
+          <Text style={styles.header}>Appointments</Text>
+
+        <TouchableOpacity onPress={() =>navigation.navigate("SearchAppointment") }>
+          <Image source={require('../../assets/images/Search.png')}  />
+        </TouchableOpacity>
+      </View>
+
 
       <View style={styles.filterContainer}>
         <TouchableOpacity onPress={() => setFilter('UPCOMING')} style={[styles.filterButton, filter === 'UPCOMING' && styles.activeFilter]}>
@@ -97,24 +126,23 @@ const AppointmentsScreen: React.FC = () => {
         data={appointments}
         renderItem={renderItem}
         keyExtractor={item => item.id}
-        contentContainerStyle={{ flexShrink: 0,flexGrow:0 }}
+        contentContainerStyle={{ flexShrink: 0, flexGrow: 0 }}
       />
-   <TouchableOpacity style={styles.viewPastButton}>
+
+      <TouchableOpacity style={styles.viewPastButton}>
         <Text style={styles.viewPastText}>View past appointments {">"}</Text>
       </TouchableOpacity>
-    
 
-<View  style={styles.addButtonContainer}>
-      <TouchableOpacity style={styles.addButton}>
-        <Text style={styles.addButtonText}>+</Text>
-      </TouchableOpacity></View>
-
+      <View style={styles.addButtonContainer}>
+        <TouchableOpacity style={styles.addButton}>
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -125,6 +153,13 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#1EB6B9',
     color: '#FFFFFF',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#1EB6B9',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -180,24 +215,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
   },
-  more: {
-    fontSize: 24,
-    color: '#00BFFF',
+
+
+  // statusContainer: {
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  // },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 67,
+    marginLeft: 5,
+  },
+  infoContainer: {
+    flexDirection: 'row', // Align items in a row
+    alignItems: 'center', // Center align vertically
   },
 
-  addButtonContainer:{
-
-    alignItems: "flex-end",
-    padding:20,
+  // more: {
+  //   fontSize: 24,
+  //   color: '#00BFFF',
+  // },
+  addButtonContainer: {
+    alignItems: 'flex-end',
+    padding: 20,
   },
-
   addButton: {
     width: 54,
     height: 54,
     borderRadius: 30,
     backgroundColor: '#1EB6B9',
     justifyContent: 'center',
-    alignItems: "center",
+    alignItems: 'center',
   },
   addButtonText: {
     fontSize: 30,
@@ -212,14 +261,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
   },
-
-
-
- 
-
-
-
-
 });
 
 export default AppointmentsScreen;
